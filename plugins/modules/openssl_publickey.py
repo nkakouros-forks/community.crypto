@@ -167,6 +167,11 @@ fingerprint:
       sha256: "41:ab:c7:cb:d5:5f:30:60:46:99:ac:d4:00:70:cf:a1:76:4f:24:5d:10:24:57:5d:51:6e:09:97:df:2f:de:c7"
       sha384: "85:39:50:4e:de:d9:19:33:40:70:ae:10:ab:59:24:19:51:c3:a2:e4:0b:1c:b1:6e:dd:b3:0c:d9:9e:6a:46:af:da:18:f8:ef:ae:2e:c0:9a:75:2c:9b:b3:0f:3a:5f:3d"
       sha512: "fd:ed:5e:39:48:5f:9f:fe:7f:25:06:3f:79:08:cd:ee:a5:e7:b3:3d:13:82:87:1f:84:e1:f5:c7:28:77:53:94:86:56:38:69:f0:d9:35:22:01:1e:a6:60:...:0f:9b"
+comment:
+    description:
+        - A comment to append to the public key
+    type: str
+    version_added: "2.8"
 backup_file:
     description: Name of backup file created.
     returned: changed and if I(backup) is C(yes)
@@ -262,6 +267,7 @@ class PublicKey(OpenSSLObject):
         self.fingerprint = {}
         self.backend = backend
 
+        self.comment = module.params['comment']
         self.backup = module.params['backup']
         self.backup_file = None
 
@@ -323,6 +329,10 @@ class PublicKey(OpenSSLObject):
 
                 if self.backup:
                     self.backup_file = module.backup_local(self.path)
+
+                if self.comment is not None:
+                    publickey_content = publickey_content + (" " + self.comment).encode('utf-8')
+
                 write_file(module, publickey_content)
 
                 self.changed = True
@@ -409,6 +419,10 @@ class PublicKey(OpenSSLObject):
         }
         if self.backup_file:
             result['backup_file'] = self.backup_file
+
+        if self.comment:
+            result['comment'] = self.comment
+
         if self.return_content:
             if self.publickey_bytes is None:
                 self.publickey_bytes = load_file_if_exists(self.path, ignore_errors=True)
@@ -434,6 +448,7 @@ def main():
             format=dict(type='str', default='PEM', choices=['OpenSSH', 'PEM']),
             privatekey_passphrase=dict(type='str', no_log=True),
             backup=dict(type='bool', default=False),
+            comment=dict(type='str', default=None),
             select_crypto_backend=dict(type='str', choices=['auto', 'pyopenssl', 'cryptography'], default='auto'),
             return_content=dict(type='bool', default=False),
         ),
